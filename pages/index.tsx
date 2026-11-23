@@ -1,76 +1,49 @@
-import 'aos/dist/aos.css';
+import Head from "next/head";
 
-import AOS from 'aos';
-import Hero from '@/components/Hero';
-import Blog from '@/components/Blog';
-import { Nav } from '@/components/Nav';
-import About from '@/components/About';
-import Footer from '@/components/Footer';
-// import Skills from '@/components/Skills';
-import Services from '@/components/Services';
-import Projects from '@/components/Projects';
-import MobileNav from '@/components/MobileNav';
-import React, { useState, useEffect } from 'react';
+import { profile } from "../data/content";
+import { useMotion } from "../components/v2/useMotion";
+import {
+  Nav,
+  Hero,
+  Work,
+  About,
+  Cursor,
+  Contact,
+  Marquee,
+  Writing,
+  Services,
+  Preloader,
+  Experience,
+} from "../components/v2/Sections";
 
-export const HomePage = () => {
-  const [nav, setNav] = useState(false);
-
-  const openNav = () => setNav(true);
-
-  const closeNav = () => setNav(false);
-
-  useEffect(() => {
-    AOS.init();
-
-    // You can also pass an optional settings object
-    // below listed default settings
-    AOS.init({
-      // Global settings:
-      disable: false, // accepts following values: 'phone', 'tablet', 'mobile', boolean, expression or function
-      startEvent: 'DOMContentLoaded', // name of the event dispatched on the document, that AOS should initialize on
-      initClassName: 'aos-init', // class applied after initialization
-      animatedClassName: 'aos-animate', // class applied on animation
-      useClassNames: false, // if true, will add content of `data-aos` as classes on scroll
-      disableMutationObserver: false, // disables automatic mutations' detections (advanced)
-      debounceDelay: 50, // the delay on debounce used while resizing window (advanced)
-      throttleDelay: 99, // the delay on throttle used while scrolling the page (advanced)
-
-      // Settings that can be overridden on per-element basis, by `data-aos-*` attributes:
-      offset: 120, // offset (in px) from the original trigger point
-      delay: 0, // values from 0 to 3000, with step 50ms
-      duration: 400, // values from 0 to 3000, with step 50ms
-      easing: 'ease', // default easing for AOS animations
-      once: true, // whether animation should happen only once - while scrolling down
-      mirror: false, // whether elements should animate out while scrolling past them
-      anchorPlacement: 'top-bottom', // defines which position of the element regarding to window should trigger the animation
-    });
-  }, []);
-
+export default function Home() {
+  useMotion();
+  const description =
+    "Swaroop Reddy — Senior Full Stack Engineer (9+ years). Java, Spring Boot, React, Next.js, Kafka, and AI agents & RAG built into real products.";
   return (
-    <div className="overflow-x-hidden">
-      <div>
-        <Nav openNav={openNav} />
-
-        <MobileNav nav={nav} closeNav={closeNav} />
-
+    <>
+      <Head>
+        <title>{`${profile.name} — Senior Full Stack & AI Engineer`}</title>
+        <meta name="description" content={description} />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta property="og:title" content={`${profile.name} — Senior Full Stack & AI Engineer`} />
+        <meta property="og:description" content={description} />
+        <meta property="og:image" content="images/v2/rag-reranker.webp" />
+        <meta name="theme-color" content="#0a0d0b" />
+      </Head>
+      <Preloader />
+      <Cursor />
+      <Nav />
+      <main>
         <Hero />
-
-        <div className="relative z-[30]">
-          <About />
-
-          <Services />
-
-          {/* <Skills /> */}
-
-          <Projects />
-
-          <Blog />
-
-          <Footer />
-        </div>
-      </div>
-    </div>
+        <Marquee />
+        <About />
+        <Experience />
+        <Work />
+        <Services />
+        <Writing />
+        <Contact />
+      </main>
+    </>
   );
-};
-
-export default HomePage;
+}

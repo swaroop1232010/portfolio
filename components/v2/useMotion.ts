@@ -1,0 +1,431 @@
+import Lenis from "lenis";
+import { gsap } from "gsap";
+import { useEffect } from "react";
+import { SplitText } from "gsap/SplitText";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger, SplitText);
+
+const $ = <T extends Element = HTMLElement>(sel: string, root: ParentNode = document) =>
+  Array.from(root.querySelectorAll<T>(sel) as unknown as T[]);
+
+/** Wires up Lenis smooth scroll and every GSAP animation on the page. */
+export function useMotion() {
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const finePointer = window.matchMedia("(pointer: fine)").matches;
+    const cleanups: (() => void)[] = [];
+
+    // ---------- Smooth scroll ----------
+    let lenis: Lenis | null = null;
+    if (!reduced) {
+      lenis = new Lenis({ lerp: 0.09, wheelMultiplier: 1 });
+      lenis.on("scroll", ScrollTrigger.update);
+      const raf = (time: number) => lenis!.raf(time * 1000);
+      gsap.ticker.add(raf);
+      gsap.ticker.lagSmoothing(0);
+      cleanups.push(() => {
+        gsap.ticker.remove(raf);
+        lenis!.destroy();
+      });
+    }
+
+    const onAnchor = (e: Event) => {
+      const a = e.currentTarget as HTMLAnchorElement;
+      const target = a.getAttribute("href");
+      if (!target || !target.startsWith("#")) return;
+      e.preventDefault();
+      const el = target === "#top" ? 0 : (document.querySelector(target) as HTMLElement);
+      if (lenis) lenis.scrollTo(el, { duration: 1.6, offset: 0 });
+      else if (el === 0) window.scrollTo({ top: 0 });
+      else el?.scrollIntoView();
+    };
+    $<HTMLAnchorElement>("[data-scroll-to]").forEach((a) => {
+      a.addEventListener("click", onAnchor);
+      cleanups.push(() => a.removeEventListener("click", onAnchor));
+    });
+
+    const ctx = gsap.context(() => {
+      // ---------- Preloader → hero intro ----------
+      const loader = document.querySelector<HTMLElement>("[data-loader]");
+      const count = document.querySelector<HTMLElement>("[data-loader-count]");
+      const heroTitleLines = $(".hero__title .line__inner");
+      const counter = { v: 0 };
+      lenis?.stop();
+
+      const intro = gsap.timeline({ defaults: { ease: "expo.out" } });
+      intro
+        .to(counter, {
+          v: 100,
+          duration: reduced ? 0.2 : 1.6,
+          ease: "power2.inOut",
+          onUpdate: () => {
+            if (count) count.textContent = String(Math.round(counter.v));
+          },
+        })
+        .to(".loader__content", { yPercent: -120, opacity: 0, duration: 0.6, ease: "power3.in" })
+        .to(".loader__panel", { yPercent: -100, duration: 1.1, stagger: 0.12, ease: "expo.inOut" }, "-=0.2")
+        .set(loader, { display: "none" })
+        .from(heroTitleLines, { yPercent: 115, rotate: 3, duration: 1.4, stagger: 0.12 }, "-=0.55")
+        .fromTo(
+          "[data-hero-photo]",
+          { width: "0em", marginLeft: "0em", marginRight: "0em" },
+          { width: "1.75em", marginLeft: "0.14em", marginRight: "0.14em", duration: 1.4, ease: "expo.inOut" },
+          "<0.5",
+        )
+        .from("[data-hero-photo] img", { scale: 1.6, duration: 2 }, "<")
+        .from("[data-hero-fade]", { y: 30, opacity: 0, duration: 1, stagger: 0.1 }, "<0.3")
+        .from("[data-nav]", { y: -40, opacity: 0, duration: 1 }, "<")
+        .from(".hero__badge", { scale: 0.6, opacity: 0, duration: 1, stagger: 0.15, ease: "back.out(1.7)" }, "<0.2")
+        .add(() => lenis?.start());
+
+      // Floating badges
+      $("[data-float]").forEach((el, i) => {
+        gsap.to(el, { y: -14, duration: 2.4 + i * 0.4, repeat: -1, yoyo: true, ease: "sine.inOut" });
+      });
+
+      // Hero leaves: text drifts up and fades, photo scales down
+      gsap.to(".hero__copy", {
+        yPercent: -18,
+        opacity: 0.15,
+        ease: "none",
+        scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true },
+      });
+
+      // Generic parallax images
+      $("[data-parallax]").forEach((el) => {
+        const amt = Number(el.dataset.parallax || 10);
+        gsap.fromTo(
+          el,
+          { yPercent: -amt / 2 },
+          {
+            yPercent: amt / 2,
+            ease: "none",
+            scrollTrigger: { trigger: el.parentElement, start: "top bottom", end: "bottom top", scrub: true },
+          },
+        );
+      });
+
+      // ---------- Marquee, sped up by scroll velocity ----------
+      $("[data-marquee]").forEach((row) => {
+        const dir = Number(row.dataset.marquee);
+        const tween = gsap.to(row, { xPercent: -50 * dir, duration: 38, ease: "none", repeat: -1 });
+        if (dir < 0) gsap.set(row, { xPercent: -50 });
+        if (lenis) {
+          const onScroll = ({ velocity }: { velocity: number }) => {
+            gsap.to(tween, { timeScale: 1 + Math.min(Math.abs(velocity) / 6, 6), duration: 0.2, overwrite: true });
+            gsap.to(tween, { timeScale: 1, duration: 1.2, delay: 0.2 });
+          };
+          lenis.on("scroll", onScroll);
+        }
+      });
+
+      // ---------- Headings: split into chars ----------
+      $("[data-split]").forEach((el) => {
+        const split = SplitText.create(el, { type: "lines,words", mask: "lines" });
+        gsap.from(split.words, {
+          yPercent: 110,
+          duration: 1.1,
+          stagger: 0.05,
+          ease: "expo.out",
+          scrollTrigger: { trigger: el, start: "top 85%" },
+        });
+      });
+
+      // ---------- About: words light up as you scroll ----------
+      $("[data-words]").forEach((el) => {
+        const split = SplitText.create(el, { type: "words" });
+        gsap.fromTo(
+          split.words,
+          { opacity: 0.12 },
+          {
+            opacity: 1,
+            stagger: 0.1,
+            ease: "none",
+            scrollTrigger: { trigger: el, start: "top 80%", end: "bottom 45%", scrub: true },
+          },
+        );
+      });
+
+      // Simple reveals
+      $("[data-reveal]").forEach((el) => {
+        gsap.from(el, {
+          y: 40,
+          opacity: 0,
+          duration: 1,
+          ease: "power3.out",
+          scrollTrigger: { trigger: el, start: "top 90%" },
+        });
+      });
+
+      // Counters
+      $("[data-count]").forEach((el) => {
+        const end = Number(el.dataset.count);
+        const obj = { v: 0 };
+        gsap.to(obj, {
+          v: end,
+          duration: 2,
+          ease: "power3.out",
+          scrollTrigger: { trigger: el, start: "top 90%" },
+          onUpdate: () => {
+            el.textContent = String(Math.round(obj.v));
+          },
+        });
+      });
+
+      // ---------- Experience: pinned horizontal scroll (desktop) ----------
+      const mm = gsap.matchMedia();
+      mm.add("(min-width: 900px)", () => {
+        const track = document.querySelector<HTMLElement>("[data-exp-track]");
+        const section = document.querySelector<HTMLElement>("[data-exp]");
+        if (!track || !section) return;
+        const distance = () => track.scrollWidth - window.innerWidth + 80;
+        const tween = gsap.to(track, {
+          x: () => -distance(),
+          ease: "none",
+          scrollTrigger: {
+            trigger: section,
+            start: "top top",
+            end: () => `+=${distance()}`,
+            pin: true,
+            scrub: 1,
+            invalidateOnRefresh: true,
+          },
+        });
+        gsap.to("[data-exp-progress]", {
+          scaleX: 1,
+          ease: "none",
+          scrollTrigger: { trigger: section, start: "top top", end: () => `+=${distance()}`, scrub: true },
+        });
+        $(".exp__card").forEach((card) => {
+          gsap.from(card, {
+            opacity: 0.25,
+            scale: 0.92,
+            rotate: 2,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: card,
+              containerAnimation: tween,
+              start: "left 95%",
+              end: "left 55%",
+              scrub: true,
+            },
+          });
+        });
+      });
+      mm.add("(max-width: 899px)", () => {
+        $(".exp__card").forEach((card) => {
+          gsap.from(card, { y: 60, opacity: 0, duration: 1, scrollTrigger: { trigger: card, start: "top 90%" } });
+        });
+      });
+
+      // ---------- Work: masonry columns move at different speeds ----------
+      mm.add("(min-width: 900px)", () => {
+        $("[data-col-speed]").forEach((col) => {
+          const s = Number(col.dataset.colSpeed);
+          gsap.fromTo(
+            col,
+            { yPercent: -s / 2 },
+            {
+              yPercent: s / 2,
+              ease: "none",
+              scrollTrigger: { trigger: ".masonry", start: "top bottom", end: "bottom top", scrub: true },
+            },
+          );
+        });
+      });
+      $("[data-card]").forEach((card) => {
+        const media = card.querySelector(".card__media");
+        const img = card.querySelector("img");
+        gsap.fromTo(
+          media,
+          { clipPath: "inset(18% 10% 18% 10% round 28px)" },
+          {
+            clipPath: "inset(0% 0% 0% 0% round 20px)",
+            duration: 1.4,
+            ease: "expo.out",
+            scrollTrigger: { trigger: card, start: "top 92%" },
+          },
+        );
+        gsap.fromTo(img, { scale: 1.3 }, { scale: 1, duration: 1.8, ease: "expo.out", scrollTrigger: { trigger: card, start: "top 92%" } });
+        gsap.from(card.querySelector(".card__body"), {
+          y: 30,
+          opacity: 0,
+          duration: 1,
+          delay: 0.2,
+          scrollTrigger: { trigger: card, start: "top 92%" },
+        });
+
+        if (finePointer && !reduced) {
+          const rx = gsap.quickTo(card, "rotationX", { duration: 0.6, ease: "power3" });
+          const ry = gsap.quickTo(card, "rotationY", { duration: 0.6, ease: "power3" });
+          const move = (e: MouseEvent) => {
+            const r = card.getBoundingClientRect();
+            const px = (e.clientX - r.left) / r.width - 0.5;
+            const py = (e.clientY - r.top) / r.height - 0.5;
+            rx(-py * 8);
+            ry(px * 10);
+          };
+          const leave = () => {
+            rx(0);
+            ry(0);
+          };
+          card.addEventListener("mousemove", move);
+          card.addEventListener("mouseleave", leave);
+          cleanups.push(() => {
+            card.removeEventListener("mousemove", move);
+            card.removeEventListener("mouseleave", leave);
+          });
+        }
+      });
+
+      // ---------- Services: stacking cards shrink as the next one arrives ----------
+      const stackCards = $("[data-stack-card]");
+      stackCards.forEach((card, i) => {
+        if (i === stackCards.length - 1) return;
+        gsap.to(card, {
+          scale: 0.92 + i * 0.02,
+          filter: "brightness(0.78)",
+          ease: "none",
+          scrollTrigger: {
+            trigger: stackCards[i + 1],
+            start: "top 75%",
+            end: "top 20%",
+            scrub: true,
+          },
+        });
+      });
+
+      // ---------- Contact ----------
+      gsap.from(".contact__mail", {
+        y: 40,
+        opacity: 0,
+        duration: 1.2,
+        ease: "expo.out",
+        scrollTrigger: { trigger: ".contact__mail", start: "top 90%" },
+      });
+      gsap.from(".contact__links a", {
+        y: 30,
+        opacity: 0,
+        stagger: 0.08,
+        duration: 1,
+        scrollTrigger: { trigger: ".contact__links", start: "top 95%" },
+      });
+    });
+
+    // ---------- Cursor, magnetic buttons, post preview (pointer devices only) ----------
+    if (finePointer && !reduced) {
+      document.documentElement.classList.add("has-cursor");
+      const dot = document.querySelector<HTMLElement>("[data-cursor-dot]")!;
+      const ring = document.querySelector<HTMLElement>("[data-cursor-ring]")!;
+      const label = document.querySelector<HTMLElement>("[data-cursor-label]")!;
+      const dx = gsap.quickTo(dot, "x", { duration: 0.12, ease: "power3" });
+      const dy = gsap.quickTo(dot, "y", { duration: 0.12, ease: "power3" });
+      const rxq = gsap.quickTo(ring, "x", { duration: 0.5, ease: "power3" });
+      const ryq = gsap.quickTo(ring, "y", { duration: 0.5, ease: "power3" });
+
+      const preview = document.querySelector<HTMLElement>("[data-post-preview]");
+      const previewImg = preview?.querySelector("img");
+      const px = preview ? gsap.quickTo(preview, "x", { duration: 0.6, ease: "power3" }) : null;
+      const py = preview ? gsap.quickTo(preview, "y", { duration: 0.6, ease: "power3" }) : null;
+
+      const onMove = (e: MouseEvent) => {
+        dx(e.clientX);
+        dy(e.clientY);
+        rxq(e.clientX);
+        ryq(e.clientY);
+        px?.(e.clientX);
+        py?.(e.clientY);
+      };
+      window.addEventListener("mousemove", onMove);
+      cleanups.push(() => window.removeEventListener("mousemove", onMove));
+
+      const hoverables = $("a, button, [data-cursor]");
+      hoverables.forEach((el) => {
+        const enter = () => {
+          const text = el.getAttribute("data-cursor");
+          label.textContent = text || "";
+          ring.classList.toggle("is-label", Boolean(text));
+          ring.classList.add("is-hover");
+        };
+        const leave = () => {
+          ring.classList.remove("is-hover", "is-label");
+          label.textContent = "";
+        };
+        el.addEventListener("mouseenter", enter);
+        el.addEventListener("mouseleave", leave);
+        cleanups.push(() => {
+          el.removeEventListener("mouseenter", enter);
+          el.removeEventListener("mouseleave", leave);
+        });
+      });
+
+      $("[data-magnetic]").forEach((el) => {
+        const mx = gsap.quickTo(el, "x", { duration: 0.8, ease: "elastic.out(1, 0.4)" });
+        const my = gsap.quickTo(el, "y", { duration: 0.8, ease: "elastic.out(1, 0.4)" });
+        const move = (e: MouseEvent) => {
+          const r = el.getBoundingClientRect();
+          mx((e.clientX - (r.left + r.width / 2)) * 0.35);
+          my((e.clientY - (r.top + r.height / 2)) * 0.35);
+        };
+        const leave = () => {
+          mx(0);
+          my(0);
+        };
+        el.addEventListener("mousemove", move);
+        el.addEventListener("mouseleave", leave);
+        cleanups.push(() => {
+          el.removeEventListener("mousemove", move);
+          el.removeEventListener("mouseleave", leave);
+        });
+      });
+
+      if (preview && previewImg) {
+        // Scrolling moves links out from under a still mouse without firing mouseleave,
+        // so re-check what's under the pointer on every scroll.
+        let lastX = -1;
+        let lastY = -1;
+        const track = (e: MouseEvent) => {
+          lastX = e.clientX;
+          lastY = e.clientY;
+        };
+        const recheck = () => {
+          const under = lastX >= 0 ? document.elementFromPoint(lastX, lastY) : null;
+          if (!under?.closest("[data-post-img]")) gsap.to(preview, { opacity: 0, scale: 0.85, duration: 0.25 });
+          if (!under?.closest("a, button, [data-cursor]")) ring.classList.remove("is-hover", "is-label");
+        };
+        window.addEventListener("mousemove", track);
+        window.addEventListener("scroll", recheck, { passive: true });
+        cleanups.push(() => {
+          window.removeEventListener("mousemove", track);
+          window.removeEventListener("scroll", recheck);
+        });
+
+        $<HTMLAnchorElement>("[data-post-img]").forEach((a) => {
+          const enter = () => {
+            previewImg.src = a.dataset.postImg || "";
+            gsap.to(preview, { opacity: 1, scale: 1, duration: 0.4, ease: "power3.out" });
+          };
+          const leave = () => gsap.to(preview, { opacity: 0, scale: 0.85, duration: 0.3 });
+          a.addEventListener("mouseenter", enter);
+          a.addEventListener("mouseleave", leave);
+          cleanups.push(() => {
+            a.removeEventListener("mouseenter", enter);
+            a.removeEventListener("mouseleave", leave);
+          });
+        });
+      }
+    }
+
+    // Recalculate trigger positions once images have loaded
+    const onLoad = () => ScrollTrigger.refresh();
+    window.addEventListener("load", onLoad);
+    cleanups.push(() => window.removeEventListener("load", onLoad));
+
+    return () => {
+      ctx.revert();
+      cleanups.forEach((fn) => fn());
+      document.documentElement.classList.remove("has-cursor");
+    };
+  }, []);
+}
