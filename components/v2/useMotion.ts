@@ -19,7 +19,8 @@ export function useMotion() {
     // ---------- Smooth scroll ----------
     let lenis: Lenis | null = null;
     if (!reduced) {
-      lenis = new Lenis({ lerp: 0.09, wheelMultiplier: 1 });
+      // Higher lerp = closer to native scrolling: smooth, but responsive rather than floaty.
+      lenis = new Lenis({ lerp: 0.16, wheelMultiplier: 1.05, smoothWheel: true });
       lenis.on("scroll", ScrollTrigger.update);
       const raf = (time: number) => lenis!.raf(time * 1000);
       gsap.ticker.add(raf);
@@ -36,7 +37,7 @@ export function useMotion() {
       if (!target || !target.startsWith("#")) return;
       e.preventDefault();
       const el = target === "#top" ? 0 : (document.querySelector(target) as HTMLElement);
-      if (lenis) lenis.scrollTo(el, { duration: 1.6, offset: 0 });
+      if (lenis) lenis.scrollTo(el, { duration: 1.1, offset: 0 });
       else if (el === 0) window.scrollTo({ top: 0 });
       else el?.scrollIntoView();
     };
@@ -57,24 +58,18 @@ export function useMotion() {
       intro
         .to(counter, {
           v: 100,
-          duration: reduced ? 0.2 : 1.6,
+          duration: reduced ? 0.2 : 1.1,
           ease: "power2.inOut",
           onUpdate: () => {
             if (count) count.textContent = String(Math.round(counter.v));
           },
         })
-        .to(".loader__content", { yPercent: -120, opacity: 0, duration: 0.6, ease: "power3.in" })
-        .to(".loader__panel", { yPercent: -100, duration: 1.1, stagger: 0.12, ease: "expo.inOut" }, "-=0.2")
+        .to(".loader__content", { yPercent: -120, opacity: 0, duration: 0.5, ease: "power3.in" })
+        .to(".loader__panel", { yPercent: -100, duration: 0.9, stagger: 0.1, ease: "expo.inOut" }, "-=0.2")
         .set(loader, { display: "none" })
-        .from(heroTitleLines, { yPercent: 115, rotate: 3, duration: 1.4, stagger: 0.12 }, "-=0.55")
-        .fromTo(
-          "[data-hero-photo]",
-          { width: "0em", marginLeft: "0em", marginRight: "0em" },
-          { width: "1.75em", marginLeft: "0.14em", marginRight: "0.14em", duration: 1.4, ease: "expo.inOut" },
-          "<0.5",
-        )
-        .from("[data-hero-photo] img", { scale: 1.6, duration: 2 }, "<")
-        .from("[data-hero-fade]", { y: 30, opacity: 0, duration: 1, stagger: 0.1 }, "<0.3")
+        .from(heroTitleLines, { yPercent: 110, duration: 1.2, stagger: 0.1 }, "-=0.45")
+        .from("[data-hero-photo]", { scale: 0, duration: 1, ease: "back.out(1.6)" }, "<0.1")
+        .from("[data-hero-fade]", { y: 24, opacity: 0, duration: 0.9, stagger: 0.08 }, "<0.2")
         .from("[data-nav]", { y: -40, opacity: 0, duration: 1 }, "<")
         .from(".hero__badge", { scale: 0.6, opacity: 0, duration: 1, stagger: 0.15, ease: "back.out(1.7)" }, "<0.2")
         .add(() => lenis?.start());
@@ -188,7 +183,7 @@ export function useMotion() {
             start: "top top",
             end: () => `+=${distance()}`,
             pin: true,
-            scrub: 1,
+            scrub: 0.4,
             invalidateOnRefresh: true,
           },
         });
@@ -263,8 +258,8 @@ export function useMotion() {
             const r = card.getBoundingClientRect();
             const px = (e.clientX - r.left) / r.width - 0.5;
             const py = (e.clientY - r.top) / r.height - 0.5;
-            rx(-py * 8);
-            ry(px * 10);
+            rx(-py * 4);
+            ry(px * 5);
           };
           const leave = () => {
             rx(0);
@@ -313,60 +308,27 @@ export function useMotion() {
       });
     });
 
-    // ---------- Cursor, magnetic buttons, post preview (pointer devices only) ----------
+    // ---------- Subtle magnetic buttons + article preview (mouse devices only; normal cursor) ----------
     if (finePointer && !reduced) {
-      document.documentElement.classList.add("has-cursor");
-      const dot = document.querySelector<HTMLElement>("[data-cursor-dot]")!;
-      const ring = document.querySelector<HTMLElement>("[data-cursor-ring]")!;
-      const label = document.querySelector<HTMLElement>("[data-cursor-label]")!;
-      const dx = gsap.quickTo(dot, "x", { duration: 0.12, ease: "power3" });
-      const dy = gsap.quickTo(dot, "y", { duration: 0.12, ease: "power3" });
-      const rxq = gsap.quickTo(ring, "x", { duration: 0.5, ease: "power3" });
-      const ryq = gsap.quickTo(ring, "y", { duration: 0.5, ease: "power3" });
-
       const preview = document.querySelector<HTMLElement>("[data-post-preview]");
       const previewImg = preview?.querySelector("img");
-      const px = preview ? gsap.quickTo(preview, "x", { duration: 0.6, ease: "power3" }) : null;
-      const py = preview ? gsap.quickTo(preview, "y", { duration: 0.6, ease: "power3" }) : null;
+      const px = preview ? gsap.quickTo(preview, "x", { duration: 0.45, ease: "power3" }) : null;
+      const py = preview ? gsap.quickTo(preview, "y", { duration: 0.45, ease: "power3" }) : null;
 
       const onMove = (e: MouseEvent) => {
-        dx(e.clientX);
-        dy(e.clientY);
-        rxq(e.clientX);
-        ryq(e.clientY);
         px?.(e.clientX);
         py?.(e.clientY);
       };
       window.addEventListener("mousemove", onMove);
       cleanups.push(() => window.removeEventListener("mousemove", onMove));
 
-      const hoverables = $("a, button, [data-cursor]");
-      hoverables.forEach((el) => {
-        const enter = () => {
-          const text = el.getAttribute("data-cursor");
-          label.textContent = text || "";
-          ring.classList.toggle("is-label", Boolean(text));
-          ring.classList.add("is-hover");
-        };
-        const leave = () => {
-          ring.classList.remove("is-hover", "is-label");
-          label.textContent = "";
-        };
-        el.addEventListener("mouseenter", enter);
-        el.addEventListener("mouseleave", leave);
-        cleanups.push(() => {
-          el.removeEventListener("mouseenter", enter);
-          el.removeEventListener("mouseleave", leave);
-        });
-      });
-
       $("[data-magnetic]").forEach((el) => {
-        const mx = gsap.quickTo(el, "x", { duration: 0.8, ease: "elastic.out(1, 0.4)" });
-        const my = gsap.quickTo(el, "y", { duration: 0.8, ease: "elastic.out(1, 0.4)" });
+        const mx = gsap.quickTo(el, "x", { duration: 0.6, ease: "power3" });
+        const my = gsap.quickTo(el, "y", { duration: 0.6, ease: "power3" });
         const move = (e: MouseEvent) => {
           const r = el.getBoundingClientRect();
-          mx((e.clientX - (r.left + r.width / 2)) * 0.35);
-          my((e.clientY - (r.top + r.height / 2)) * 0.35);
+          mx((e.clientX - (r.left + r.width / 2)) * 0.18);
+          my((e.clientY - (r.top + r.height / 2)) * 0.18);
         };
         const leave = () => {
           mx(0);
@@ -392,7 +354,6 @@ export function useMotion() {
         const recheck = () => {
           const under = lastX >= 0 ? document.elementFromPoint(lastX, lastY) : null;
           if (!under?.closest("[data-post-img]")) gsap.to(preview, { opacity: 0, scale: 0.85, duration: 0.25 });
-          if (!under?.closest("a, button, [data-cursor]")) ring.classList.remove("is-hover", "is-label");
         };
         window.addEventListener("mousemove", track);
         window.addEventListener("scroll", recheck, { passive: true });
@@ -425,7 +386,6 @@ export function useMotion() {
     return () => {
       ctx.revert();
       cleanups.forEach((fn) => fn());
-      document.documentElement.classList.remove("has-cursor");
     };
   }, []);
 }

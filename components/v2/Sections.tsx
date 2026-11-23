@@ -47,25 +47,23 @@ export function Hero() {
     <section className="hero" id="top">
       <div className="hero__grid">
         <div className="hero__copy">
-          <p className="eyebrow hero__eyebrow" data-hero-fade>
-            <span className="dot" /> {profile.role} · {profile.location} · Open to new projects
-          </p>
-          <h1 className="hero__title" data-hero-title aria-label={heroLines.join(" ")}>
-            <span className="line">
-              <span className="line__inner">{heroLines[0]}</span>
-            </span>
-            <span className="line">
-              <span className="line__inner">
-                that scale
-                <span className="hero__pill" data-hero-photo>
-                  <img src={profile.photo} alt="" />
-                </span>
-                —
+          <div className="hero__me" data-hero-fade>
+            <div className="hero__avatar" data-hero-photo>
+              <img src={profile.photo} alt={profile.name} />
+            </div>
+            <div className="hero__me-text">
+              <span className="hero__me-name">{profile.name}</span>
+              <span className="hero__me-role">
+                <span className="dot" /> {profile.role} · {profile.location} · Open to projects
               </span>
-            </span>
-            <span className="line">
-              <span className="line__inner accent">{heroLines[2]}</span>
-            </span>
+            </div>
+          </div>
+          <h1 className="hero__title" data-hero-title>
+            {heroLines.map((line, i) => (
+              <span className="line" key={line}>
+                <span className={`line__inner ${i === 2 ? "accent" : ""}`}>{line}</span>
+              </span>
+            ))}
           </h1>
           <p className="hero__sub" data-hero-fade>
             9+ years building e-commerce platforms, real-time systems and, today, AI agents — with Java,
@@ -349,16 +347,5 @@ export function Preloader() {
         </span>
       </div>
     </div>
-  );
-}
-
-export function Cursor() {
-  return (
-    <>
-      <div className="cursor" data-cursor-dot />
-      <div className="cursor-ring" data-cursor-ring>
-        <span data-cursor-label />
-      </div>
-    </>
   );
 }

@@ -7,7 +7,6 @@ import {
   Hero,
   Work,
   About,
-  Cursor,
   Contact,
   Marquee,
   Writing,
@@ -32,7 +31,6 @@ export default function Home() {
         <meta name="theme-color" content="#0a0d0b" />
       </Head>
       <Preloader />
-      <Cursor />
       <Nav />
       <main>
         <Hero />
