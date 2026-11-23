@@ -444,3 +444,29 @@ main { position: relative; z-index: 2; }
 @media (max-width: 900px) { .about__text { max-width: none; } }
 
 @media (max-width: 900px) { .hero { padding-top: max(300px, 38svh); justify-content: flex-start; } }
+
+/* ================= 3D crystal slots (the crystal is drawn exactly over these) ================= */
+.hero__orb {
+  position: absolute;
+  right: -2vw;
+  top: 44%;
+  transform: translateY(-50%);
+  width: min(40vw, 600px);
+  aspect-ratio: 1;
+  pointer-events: none;
+}
+.contact__orb {
+  position: absolute;
+  right: -2vw;
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(36vw, 540px);
+  aspect-ratio: 1;
+  pointer-events: none;
+}
+.hero__visual { z-index: 4; }
+@media (max-width: 900px) {
+  .hero__orb { right: auto; left: 50%; top: calc(80px - max(390px, 46svh)); transform: translateX(-50%); width: min(78vw, 300px); }
+  .contact__orb { display: none; }
+  .hero { padding-top: max(390px, 46svh); }
+}

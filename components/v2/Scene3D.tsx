@@ -1,10 +1,7 @@
 import { gsap } from "gsap";
 import * as THREE from "three";
 import { useRef, useEffect } from "react";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-
-gsap.registerPlugin(ScrollTrigger);
 
 type Pose = { x: number; y: number; s: number };
 
@@ -93,38 +90,40 @@ export default function Scene3D() {
     rim.position.set(-3, -2, -3);
     scene.add(rim);
 
-    // ---------- Poses per section (world units; x≈±5 is the screen edge on desktop) ----------
-    const poses: Record<string, Pose> = mobile
-      ? {
-          hero: { x: 0, y: 1.5, s: 0.42 },
-          about: { x: 0.9, y: 2.9, s: 0.25 },
-          gone: { x: 0.9, y: 7, s: 0.2 },
-          contact: { x: 0.75, y: 2.35, s: 0.28 },
-        }
-      : {
-          hero: { x: 3, y: -0.15, s: 1.1 },
-          about: { x: 4.1, y: 1.1, s: 0.6 },
-          gone: { x: 4.1, y: 6.5, s: 0.45 },
-          contact: { x: 3.1, y: 0, s: 0.95 },
-        };
-
-    const state: Pose = { ...poses.hero };
+    // ---------- Anchor slots ----------
+    // The crystal lives inside empty slots on the page ([data-orb-anchor]) and scrolls with them,
+    // like a normal page element, so it never floats over other sections.
+    const OBJECT_DIAMETER = 5.2; // world units: particle ring diameter at scale 1
+    const anchors = Array.from(document.querySelectorAll<HTMLElement>("[data-orb-anchor]"));
+    const state: Pose = { x: 0, y: 0, s: 0 };
     const intro = { v: reduced ? 1 : 0 };
     if (!reduced) gsap.to(intro, { v: 1, duration: 1.8, delay: 1.5, ease: "elastic.out(1, 0.6)" });
 
-    const steps: [string, Pose, Pose][] = [
-      ["#about", poses.hero, poses.about],
-      ["#experience", poses.about, poses.gone],
-      ["#contact", poses.gone, poses.contact],
-    ];
-    const triggers = steps.map(([sel, from, to]) =>
-      gsap.fromTo(state, { ...from }, {
-        ...to,
-        ease: "power2.inOut",
-        immediateRender: false,
-        scrollTrigger: { trigger: sel, start: "top bottom", end: "top 25%", scrub: 1 },
-      }),
-    );
+    /** Places the crystal on the anchor that is most visible; returns false if none is on screen. */
+    const followAnchor = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      let best: DOMRect | null = null;
+      let bestVisible = 0;
+      anchors.forEach((a) => {
+        const r = a.getBoundingClientRect();
+        if (r.width === 0) return; // hidden at this breakpoint
+        const visible = Math.max(0, Math.min(r.bottom, vh + r.height * 0.3) - Math.max(r.top, -r.height * 0.3));
+        if (visible > bestVisible) {
+          bestVisible = visible;
+          best = r;
+        }
+      });
+      if (!best) return false;
+      const r = best as DOMRect;
+      const halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z;
+      const halfW = halfH * camera.aspect;
+      const unitsPerPx = (halfH * 2) / vh;
+      state.x = ((r.left + r.width / 2) / vw) * 2 * halfW - halfW;
+      state.y = halfH - ((r.top + r.height / 2) / vh) * 2 * halfH;
+      state.s = (r.width * unitsPerPx) / OBJECT_DIAMETER;
+      return true;
+    };
 
     // ---------- Mouse + scroll velocity ----------
     const pointer = { x: 0, y: 0 };
@@ -149,7 +148,7 @@ export default function Scene3D() {
     const tick = (_t: number, deltaMs: number) => {
       if (document.hidden) return;
       const dt = Math.min(deltaMs / 1000, 0.05);
-      const visible = state.y < 5.5 && intro.v > 0.001;
+      const visible = followAnchor() && intro.v > 0.001;
       if (!visible) {
         if (wasVisible) {
           renderer.clear();
@@ -183,10 +182,6 @@ export default function Scene3D() {
 
     return () => {
       gsap.ticker.remove(tick);
-      triggers.forEach((tw) => {
-        tw.scrollTrigger?.kill();
-        tw.kill();
-      });
       window.removeEventListener("pointermove", onPointer);
       window.removeEventListener("resize", onResize);
       [gemGeo, shellGeo, ringGeo].forEach((g) => g.dispose());

@@ -78,6 +78,7 @@ export function Hero() {
             </a>
           </div>
         </div>
+        <div className="hero__orb" data-orb-anchor aria-hidden="true" />
         <div className="hero__visual">
           <div className="hero__badge" data-float>
             <strong>100%</strong>
@@ -300,6 +301,7 @@ export function Contact() {
     <section className="contact" id="contact">
       <img className="contact__bg" src="images/v2/contact-bg.webp" alt="" data-parallax="15" />
       <div className="contact__inner">
+        <div className="contact__orb" data-orb-anchor aria-hidden="true" />
         <p className="eyebrow">(06) Contact</p>
         <h2 className="contact__title" data-split>
           Have a project in mind?
