@@ -1,4 +1,4 @@
-@import "tailwindcss/base";
+﻿@import "tailwindcss/base";
 
 /* ================= Tokens ================= */
 :root {
@@ -10,9 +10,9 @@
   --muted: #8b968f;
   --accent: #3ddc84;
   --accent-2: #1f8a5a;
-  --display: "Inter Tight", "Inter", system-ui, sans-serif;
-  --serif: "Instrument Serif", Georgia, serif;
-  --body: "Inter", system-ui, sans-serif;
+  --display: "Fraunces", Georgia, serif;
+  --serif: "Fraunces", Georgia, serif;
+  --body: "Manrope", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, monospace;
   --pad: clamp(20px, 5vw, 72px);
   --radius: 20px;
@@ -406,3 +406,41 @@ body::after {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .loader { display: none; }
 }
+
+/* ================= Fraunces tuning (serif needs looser tracking) ================= */
+.hero__title { font-weight: 300; letter-spacing: -0.035em; line-height: 1.0; font-variation-settings: "SOFT" 50; }
+.h2 { font-weight: 300; letter-spacing: -0.025em; }
+.contact__title { font-weight: 300; letter-spacing: -0.035em; }
+.about__text { font-weight: 300; letter-spacing: -0.015em; line-height: 1.25; }
+.stat__value, .loader__count, .stack__no, .exp__index { letter-spacing: -0.03em; }
+.stack__card h3 { font-weight: 400; letter-spacing: -0.02em; }
+.exp__role, .card__body h3 { font-weight: 500; letter-spacing: -0.01em; }
+.post__title { font-weight: 300; letter-spacing: -0.01em; }
+.contact__mail { letter-spacing: -0.01em; }
+.hero__badge strong { letter-spacing: -0.02em; }
+.marquee__item { font-weight: 300; letter-spacing: -0.02em; }
+.marquee__row--outline .marquee__item { color: var(--accent); opacity: 0.75; }
+.hero__title .accent, .h2 .accent, .contact__title .accent { font-weight: 300; letter-spacing: -0.02em; }
+.nav__logo, .hero__me-name, .btn, .nav__cta, .chip, .eyebrow { font-variation-settings: normal; }
+.hero__me-name { font-family: var(--body); font-weight: 600; letter-spacing: -0.01em; }
+.nav__logo { font-style: italic; font-weight: 500; }
+
+/* ================= 3D canvas ================= */
+.scene3d {
+  position: fixed; inset: 0;
+  width: 100vw; height: 100vh;
+  pointer-events: none;
+  z-index: 3;
+}
+main { position: relative; z-index: 2; }
+.hero, .about, .work, .services, .writing, .exp { background-color: transparent; }
+
+/* ================= Experience as a curved 3D arc ================= */
+.exp { perspective: 1400px; }
+.exp__track { transform-style: preserve-3d; }
+.exp__card { will-change: transform; backface-visibility: hidden; }
+
+.about__text { max-width: min(1000px, 72vw); }
+@media (max-width: 900px) { .about__text { max-width: none; } }
+
+@media (max-width: 900px) { .hero { padding-top: max(300px, 38svh); justify-content: flex-start; } }

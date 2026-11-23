@@ -107,9 +107,13 @@ export function useMotion() {
         const tween = gsap.to(row, { xPercent: -50 * dir, duration: 38, ease: "none", repeat: -1 });
         if (dir < 0) gsap.set(row, { xPercent: -50 });
         if (lenis) {
+          // Leans with scroll speed (skew) and speeds up, then settles back.
+          const lean = gsap.quickTo(row, "skewX", { duration: 0.5, ease: "power3" });
           const onScroll = ({ velocity }: { velocity: number }) => {
             gsap.to(tween, { timeScale: 1 + Math.min(Math.abs(velocity) / 6, 6), duration: 0.2, overwrite: true });
             gsap.to(tween, { timeScale: 1, duration: 1.2, delay: 0.2 });
+            lean(Math.max(-14, Math.min(14, -velocity * 0.6)));
+            gsap.delayedCall(0.15, () => lean(0));
           };
           lenis.on("scroll", onScroll);
         }
@@ -175,9 +179,25 @@ export function useMotion() {
         const section = document.querySelector<HTMLElement>("[data-exp]");
         if (!track || !section) return;
         const distance = () => track.scrollWidth - window.innerWidth + 80;
-        const tween = gsap.to(track, {
+        // Curved 3D arc: each card turns and sinks back the further it is from screen centre.
+        const cards = $(".exp__card");
+        const arc = () => {
+          const mid = window.innerWidth / 2;
+          cards.forEach((card) => {
+            const r = card.getBoundingClientRect();
+            const d = Math.max(-1.6, Math.min(1.6, (r.left + r.width / 2 - mid) / window.innerWidth));
+            gsap.set(card, {
+              rotationY: d * -32,
+              z: -Math.abs(d) * 260,
+              y: d * d * 60,
+              opacity: 1 - Math.min(Math.abs(d) * 0.45, 0.6),
+            });
+          });
+        };
+        gsap.to(track, {
           x: () => -distance(),
           ease: "none",
+          onUpdate: arc,
           scrollTrigger: {
             trigger: section,
             start: "top top",
@@ -185,27 +205,14 @@ export function useMotion() {
             pin: true,
             scrub: 0.4,
             invalidateOnRefresh: true,
+            onRefresh: arc,
           },
         });
+        arc();
         gsap.to("[data-exp-progress]", {
           scaleX: 1,
           ease: "none",
           scrollTrigger: { trigger: section, start: "top top", end: () => `+=${distance()}`, scrub: true },
-        });
-        $(".exp__card").forEach((card) => {
-          gsap.from(card, {
-            opacity: 0.25,
-            scale: 0.92,
-            rotate: 2,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: card,
-              containerAnimation: tween,
-              start: "left 95%",
-              end: "left 55%",
-              scrub: true,
-            },
-          });
         });
       });
       mm.add("(max-width: 899px)", () => {

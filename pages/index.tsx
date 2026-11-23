@@ -1,4 +1,5 @@
 import Head from "next/head";
+import dynamic from "next/dynamic";
 
 import { profile } from "../data/content";
 import { useMotion } from "../components/v2/useMotion";
@@ -14,6 +15,9 @@ import {
   Preloader,
   Experience,
 } from "../components/v2/Sections";
+
+// Three.js only runs in the browser, so skip it during static export.
+const Scene3D = dynamic(() => import("../components/v2/Scene3D"), { ssr: false });
 
 export default function Home() {
   useMotion();
@@ -31,6 +35,7 @@ export default function Home() {
         <meta name="theme-color" content="#0a0d0b" />
       </Head>
       <Preloader />
+      <Scene3D />
       <Nav />
       <main>
         <Hero />
